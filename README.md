@@ -1,4 +1,4 @@
-# MagicX-Client Chrome Extension
+# Hyperchrome - chromium browser Extension
 
 ## Install
 
