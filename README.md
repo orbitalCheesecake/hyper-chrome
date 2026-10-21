@@ -1,11 +1,12 @@
 # Hyperchrome - chromium browser Extension
 
 ## Install
-
-1. Open `chrome://extensions` in Chrome.
-2. Turn on **Developer mode**.
-3. Choose **Load unpacked**.
-4. Select this `magicx-client-extension` folder.
+1. Download the code as zip,
+2. Extract the zip.
+2. Open `chrome://extensions` in Chrome.
+3. Turn on **Developer mode**.
+4. Choose **Load unpacked**.
+5. Select this `hyper-chrome-main` folder.
 
 The extension runs on regular HTTP and HTTPS pages. The browser does not allow extensions to run on Chrome internal pages such as `chrome://extensions`, the Chrome Web Store, or some PDF viewer pages.
 
