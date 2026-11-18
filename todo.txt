@@ -1,0 +1,11 @@
+* [x] search bar
+* [x] dark mode sollte nicht die hyper chrome gui und alle anderen elemente, etc die zu hyper chrome dazugehören beeinflussen
+* [x] neues module: man cookies bearbeiten und löschen können
+* [x] verschiedene dark mode themes einstellen, custom themes erstellen
+* [x] benenne alle stellen im code wo noch MagicX Client steht zu Hyper Chrome um
+* [x] consolen fenster
+* [x] html editor: geänderte html wird für die webseite gespeichert und beim nächsten mal automatisch wieder aktiviert
+* [x] beim hovern über einem modul und in den settings dessen funktion anzeigen
+* [x] mehr themes presets wie darkmode high contrast, evening (heller als hyper chrome preset also mit grau), etc.
+* [x] ai chat, wo man api key eingibt. nimmt apis von open ai, groq, gemeni, anthrpic, usw.
+* [x] github updaten

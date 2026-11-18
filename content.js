@@ -1,10 +1,10 @@
 (() => {
   "use strict";
 
-  if (window.__MagicXClientV4) return;
-  window.__MagicXClientV4 = true;
+  if (window.__HyperChromeV4) return;
+  window.__HyperChromeV4 = true;
 
-  const STORE = "magicx-client-v4";
+  const STORE = "hyper-chrome-v4";
 
   const defaults = {
     accent: "#FFFFFF",
@@ -39,6 +39,7 @@
       hideImages: false, bigText: false, hideHeaders: false,
       customCSS: false, clock: false, imageReplace: false,
       textFix: false, linkWidget: false, serverESP: false, timer: false,
+      pageSearch: false, cookies: false,
     },
     binds: { textFix: "AltRight", linkWidget: "KeyJ", serverESP: "KeyN" },
     options: {
@@ -54,8 +55,11 @@
       serverESP: { hotkey: "KeyN", maxRows: 80 }
     },
     css: "",
-    html: "<h2 style='color:#FFFFFF'>Hello MagicX!</h2>\n<p>Welcome to the HTML Lab.</p>",
-    replacementImage: ""
+    html: "<h2 style='color:#FFFFFF'>Hello Hyper Chrome!</h2>\n<p>Welcome to the HTML Lab.</p>",
+    htmlPageEnabled: false,
+    replacementImage: "",
+    customThemes: {},
+    aiChat: { provider: "openai", model: "gpt-4o-mini", systemPrompt: "You are a helpful assistant." }
   };
 
   function clone(x) {
@@ -76,7 +80,9 @@
         options: {
           ...clone(defaults.options),
           ...(saved.options || {})
-        }
+        },
+        customThemes: { ...(saved.customThemes || {}) },
+        aiChat: { ...defaults.aiChat, ...(saved.aiChat || {}) }
       };
       // Upgrade the previous built-in palette while preserving user-picked colors.
       const oldPalette = {
@@ -94,7 +100,7 @@
       for (const key of ["inspector", "links", "images", "clock"]) {
         if (config.options[key]?.color === "#D5AD00") config.options[key].color = "#FFFFFF";
       }
-      if (config.html === "<h2 style='color:#D5AD00'>Hello MagicX!</h2>\n<p>Welcome to the HTML Lab.</p>") {
+      if (config.html === "<h2 style='color:#D5AD00'>Hello Hyper Chrome!</h2>\n<p>Welcome to the HTML Lab.</p>") {
         config.html = defaults.html;
       }
       return config;
@@ -110,7 +116,7 @@
   let toastTimer;
 
   const host = document.createElement("div");
-  host.id = "magicx-client";
+  host.id = "hyper-chrome-client";
   host.style.cssText =
     "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
   document.documentElement.appendChild(host);
@@ -166,12 +172,15 @@
     }
     .module:hover { background:color-mix(in srgb,var(--a) 10%,transparent) }
     .module.on { background:color-mix(in srgb,var(--a) 14%,transparent) }
+    .module[hidden],.developer-category[hidden] { display:none!important }
     .mname { font-size:12px;font-weight:850 }
     .desc { font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4 }
     .switch { width:32px;height:18px;background:var(--switch-off);border-radius:20px;padding:3px;flex-shrink:0 }
     .switch:after { content:"";display:block;width:12px;height:12px;background:var(--switch-knob);border-radius:50% }
     .on .switch { background:var(--a) }
     .on .switch:after { background:var(--switch-on-knob);transform:translateX(14px) }
+    .module-action { flex-shrink:0;color:var(--muted);font-size:15px;font-weight:900;padding:0 5px }
+    .module-search { width:100%;padding:8px;background:var(--control-bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;margin:0 0 7px }
     .setting { padding:9px 5px;border-bottom:1px solid #ffffff12 }
     label { display:block;font-size:11px;font-weight:800;margin-bottom:7px }
     input[type=color] { width:100%;height:30px;border:0;background:transparent;cursor:pointer }
@@ -278,6 +287,17 @@
       resize:none;border-radius:0;animation:mx-expand .28s ease-out}
     @keyframes mx-expand {from{transform:scale(.82);opacity:.65}to{transform:scale(1);opacity:1}}
     .floating .float-url {width:100%;padding:8px;background:var(--control-bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px}
+    .help-tip { position:relative;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
+      margin-left:5px;border:1px solid var(--muted);border-radius:50%;color:var(--muted);font:10px Arial,sans-serif;cursor:help }
+    .help-tip::after { content:attr(data-help);display:none;position:absolute;z-index:10;left:22px;top:-7px;width:220px;
+      padding:8px;background:var(--bg);color:var(--fg);border:1px solid var(--a);border-radius:6px;box-shadow:0 5px 18px #000b;
+      font:11px/1.4 Inter,Arial,sans-serif;text-transform:none;letter-spacing:normal;font-weight:normal }
+    .help-tip:hover::after,.help-tip:focus-visible::after { display:block }
+    .console-output,.chat-output { min-height:170px;max-height:300px;overflow:auto;background:var(--control-bg);border:1px solid var(--bd);
+      border-radius:6px;padding:8px;font:11px/1.45 Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere }
+    .console-line.error { color:#ff8a8a }.console-line.warn { color:#ffd18a }.console-line.info { color:var(--muted) }
+    .chat-output { font-family:Inter,Arial,sans-serif;white-space:normal }.chat-message { padding:8px;margin:6px 0;border-radius:6px;white-space:pre-wrap;overflow-wrap:anywhere }
+    .chat-message.user { background:color-mix(in srgb,var(--a) 15%,transparent) }.chat-message.assistant { background:#ffffff0c }.chat-message.error { color:#ff9d9d }
     .net-row {font:11px/1.45 Consolas,monospace;padding:6px;border-bottom:1px solid #ffffff16;overflow-wrap:anywhere}
     .net-row b {color:var(--a)}
     #preview {
@@ -309,7 +329,7 @@
   const brand = document.createElement("div");
   brand.id = "brand";
   brand.innerHTML =
-    '<div class="logo">✦ HYPER CHROME ✦</div><div class="sub">chromium web tools v4</div>';
+    '<div class="logo">✦ HYPER CHROME ✦</div><div class="sub">chromium web tools v4.1</div>';
   gui.appendChild(brand);
 
   const toast = document.createElement("div");
@@ -505,12 +525,12 @@ timerHead.addEventListener("pointercancel", () => timerDrag = null);
 timerRender();
 
   const effects = document.createElement("style");
-  effects.id = "magicx-page-effects";
+  effects.id = "hyper-chrome-page-effects";
   document.head.appendChild(effects);
 
   function save() {
     try { localStorage.setItem(STORE, JSON.stringify(cfg)); }
-    catch (e) { console.warn("[MagicX] Config save failed", e); }
+    catch (e) { console.warn("[Hyper Chrome] Config save failed", e); }
   }
 
   function notify(message) {
@@ -625,7 +645,7 @@ timerRender();
   const configPanel = makeWindow("▣ CONFIGS", 275, 380);
 
   const moduleInfo = {
-    dark: ["Dark Mode","Invert page colors"],
+    dark: ["Dark Mode","Invert page colors without changing Hyper Chrome"],
     animations: ["No Animations","Disable CSS animation and transitions"],
     reader: ["Reader Mode","Limit article width and improve line spacing"],
     inspector: ["Element Inspector","Highlight the element under the mouse"],
@@ -640,7 +660,11 @@ timerRender();
     imageReplace: ["Image Replacer","Replace page images with your JPG"],
     textFix: ["Text Fix","Edit selected text and apply a correction"],
     linkWidget: ["Link Widget","Open a movable website widget"],
-    serverESP: ["Server ESP","Observe page network requests and resource URLs"]
+    serverESP: ["Server ESP","Observe page network requests and resource URLs"],
+    pageSearch: ["Page Search","Find text on the current page"],
+    cookies: ["Cookie Manager","View, edit, and delete this page's readable cookies"],
+    consoleWindow: ["Console Window","View page console messages, warnings, and errors"],
+    aiChat: ["AI Chat","Chat directly with OpenAI, Groq, Gemini, or Anthropic"]
   };
 
   const webDeveloperTools = [
@@ -734,6 +758,58 @@ timerRender();
     ["Resize & Tools","devDNS","View DNS Records","DNS lookup needs an external service","action"],
     ["Resize & Tools","devViewSource","View Source","Show the current page DOM source","action"]
   ];
+  const moduleColorSettings = {
+    inspector: "Highlight Color",
+    links: "Link Outline Color",
+    images: "Image Outline Color",
+    timer: "Timer Accent Color",
+    linkWidget: "Widget Accent Color",
+    serverESP: "Network Panel Accent Color",
+    devOutlineImages: "Image Outline Color",
+    devReplaceAlt: "Alt Label Background Color",
+    devAnchors: "Anchor Outline Color",
+    devIdClass: "ID/Class Label Color",
+    devBrokenImages: "Broken Image Outline Color",
+    devShowHidden: "Revealed Element Outline Color",
+    devLineGuides: "Guide Color",
+    devRuler: "Ruler Color",
+    devMarkLinks: "Link Outline Color",
+    devOutlineBlocks: "Block Outline Color",
+    devOutlineDeprecated: "Deprecated Element Outline Color",
+    devOutlineExternal: "External Link Outline Color",
+    devOutlinePositioned: "Positioned Element Outline Color",
+    devOutlineFloated: "Floated Element Outline Color",
+    devOutlineFrames: "Frame Outline Color",
+    devOutlineHeadings: "Heading Outline Color",
+    devOutlineInsecure: "Insecure Resource Outline Color",
+    devOutlineTables: "Table Outline Color",
+    devTagNames: "Tag Label Color",
+    devViewportSize: "Viewport Badge Color"
+  };
+  const developerReportActions = new Set([
+    "devViewCSS", "devFormDetails", "devBrokenImages", "devImageInfo",
+    "devAbbreviations", "devAccessKeys", "devAriaRoles", "devElementInfo",
+    "devLinkInfo", "devAnchorInfo", "devColorInfo", "devDocumentOutline",
+    "devJavaScriptInfo", "devCookieInfo", "devMetaInfo", "devHeaderInfo",
+    "devResponsiveLayouts", "devEditResizeSizes", "devResizeWindow",
+    "devValidateFeed", "devDNS", "devValidateStructuredData", "devValidateLinks",
+    "devValidateAccessibility", "devValidateCSS", "devValidateHTML", "devViewSource"
+  ]);
+  for (const id of developerReportActions) moduleColorSettings[id] = "Report Text Color";
+  const moduleEffectColor = id => {
+    const color = cfg.options[id]?.color;
+    return typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color) ? color : "#FFFFFF";
+  };
+  const moduleEffectTextColor = id => {
+    const color = moduleEffectColor(id);
+    const channels = [1,3,5].map(offset => parseInt(color.slice(offset,offset+2),16)/255);
+    const luminance = channels.map(value => value <= 0.04045 ? value/12.92 : ((value+0.055)/1.055)**2)
+      .reduce((sum,value,index) => sum + value*[0.2126,0.7152,0.0722][index],0);
+    return luminance > 0.45 ? "#000000" : "#FFFFFF";
+  };
+  for (const id of Object.keys(moduleColorSettings)) {
+    cfg.options[id] = { ...(cfg.options[id] || {}), color: moduleEffectColor(id) };
+  }
   const developerToggles = new Set(webDeveloperTools.filter(item => item[4] === "toggle").map(item => item[1]));
   const developerActions = new Set(webDeveloperTools.filter(item => item[4] === "action").map(item => item[1]));
   const developerStyleRules = {
@@ -743,23 +819,23 @@ timerRender();
     devHideBackgrounds: "*{background-image:none!important}",
     devFullSizeImages: "img{width:auto!important;height:auto!important;max-width:none!important;max-height:none!important}",
     devInvisibleImages: "img{visibility:hidden!important}",
-    devOutlineImages: "img,picture,svg{outline:2px solid #00aaff!important;outline-offset:1px!important}",
-    devReplaceAlt: "img[data-mx-replace-alt]{display:none!important}.mx-dev-alt{display:inline-block!important;padding:4px 7px!important;background:#fff3cd!important;color:#111!important;border:1px dashed #555!important;font:12px/1.4 monospace!important}",
-    devAnchors: "a[id],a[name]{outline:2px solid #ff7b00!important;outline-offset:2px!important}",
-    devIdClass: "[data-mx-dev-idclass]::after{content:attr(data-mx-dev-idclass);position:absolute;z-index:2147483000;background:#111;color:#fff;font:10px monospace;padding:2px 4px;pointer-events:none}",
-    devShowHidden: "[data-mx-hidden='1']{display:revert!important;visibility:visible!important;opacity:1!important}",
+    devOutlineImages: () => `img,picture,svg{outline:2px solid ${moduleEffectColor("devOutlineImages")}!important;outline-offset:1px!important}`,
+    devReplaceAlt: () => `img[data-hc-replace-alt]{display:none!important}.hc-dev-alt{display:inline-block!important;padding:4px 7px!important;background:${moduleEffectColor("devReplaceAlt")}!important;color:${moduleEffectTextColor("devReplaceAlt")}!important;border:1px dashed currentColor!important;font:12px/1.4 monospace!important}`,
+    devAnchors: () => `a[id],a[name]{outline:2px solid ${moduleEffectColor("devAnchors")}!important;outline-offset:2px!important}`,
+    devIdClass: () => `[data-hc-dev-idclass]::after{content:attr(data-hc-dev-idclass);position:absolute;z-index:2147483000;background:${moduleEffectColor("devIdClass")};color:${moduleEffectTextColor("devIdClass")};font:10px monospace;padding:2px 4px;pointer-events:none}`,
+    devShowHidden: () => `[data-hc-hidden='1']{display:revert!important;visibility:visible!important;opacity:1!important;outline:2px dashed ${moduleEffectColor("devShowHidden")}!important;outline-offset:2px!important}`,
     devLinearize: "html body,html body *{float:none!important;position:static!important;display:block!important;width:auto!important;max-width:none!important;columns:auto!important;transform:none!important}",
     devResizableFrames: "iframe,frame{resize:both!important;overflow:auto!important}",
-    devMarkLinks: "a[href]{outline:1px solid #13a10e!important;outline-offset:1px!important}",
-    devOutlineBlocks: "address,article,aside,blockquote,body,dd,div,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hr,li,main,nav,ol,p,pre,section,table,ul{outline:1px solid #e74856!important}",
-    devOutlineDeprecated: "acronym,big,center,font,marquee, strike,tt{outline:2px solid #ff7b00!important}",
-    devOutlineExternal: "a[data-mx-dev-external]{outline:2px solid #a855f7!important}",
-    devOutlinePositioned: "[style*='position: absolute'],[style*='position:absolute'],[style*='position: fixed'],[style*='position:fixed'],[style*='position: sticky'],[style*='position:sticky']{outline:2px solid #00aaff!important}",
-    devOutlineFloated: "[style*='float: left'],[style*='float:left'],[style*='float: right'],[style*='float:right']{outline:2px solid #ff7b00!important}",
-    devOutlineFrames: "iframe,frame{outline:2px solid #a855f7!important}",
-    devOutlineHeadings: "h1,h2,h3,h4,h5,h6{outline:2px solid #e74856!important}",
-    devOutlineInsecure: "[src^='http://'],[href^='http://']{outline:2px solid #ff3b30!important}",
-    devOutlineTables: "table,tr,th,td{outline:1px solid #00aaff!important}",
+    devMarkLinks: () => `a[href]{outline:1px solid ${moduleEffectColor("devMarkLinks")}!important;outline-offset:1px!important}`,
+    devOutlineBlocks: () => `address,article,aside,blockquote,body,dd,div,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hr,li,main,nav,ol,p,pre,section,table,ul{outline:1px solid ${moduleEffectColor("devOutlineBlocks")}!important}`,
+    devOutlineDeprecated: () => `acronym,big,center,font,marquee,strike,tt{outline:2px solid ${moduleEffectColor("devOutlineDeprecated")}!important}`,
+    devOutlineExternal: () => `a[data-hc-dev-external]{outline:2px solid ${moduleEffectColor("devOutlineExternal")}!important}`,
+    devOutlinePositioned: () => `[style*='position: absolute'],[style*='position:absolute'],[style*='position: fixed'],[style*='position:fixed'],[style*='position: sticky'],[style*='position:sticky']{outline:2px solid ${moduleEffectColor("devOutlinePositioned")}!important}`,
+    devOutlineFloated: () => `[style*='float: left'],[style*='float:left'],[style*='float: right'],[style*='float:right']{outline:2px solid ${moduleEffectColor("devOutlineFloated")}!important}`,
+    devOutlineFrames: () => `iframe,frame{outline:2px solid ${moduleEffectColor("devOutlineFrames")}!important}`,
+    devOutlineHeadings: () => `h1,h2,h3,h4,h5,h6{outline:2px solid ${moduleEffectColor("devOutlineHeadings")}!important}`,
+    devOutlineInsecure: () => `[src^='http://'],[href^='http://']{outline:2px solid ${moduleEffectColor("devOutlineInsecure")}!important}`,
+    devOutlineTables: () => `table,tr,th,td{outline:1px solid ${moduleEffectColor("devOutlineTables")}!important}`,
     devTagNames: ""
   };
   for (const [category,id,label,description] of webDeveloperTools) {
@@ -767,7 +843,57 @@ timerRender();
     if (!(id in cfg.modules)) cfg.modules[id] = false;
   }
 
+  let linkFloat = null, linkFrame = null;
+  let networkPanel = null, networkBody = null;
+  let consolePanel = null, consoleBody = null;
+  let aiChatPanel = null;
   const rows = {};
+  const developerCategoryHeadings = [];
+  const moduleSearch = document.createElement("input");
+  moduleSearch.type = "search";
+  moduleSearch.className = "module-search";
+  moduleSearch.placeholder = "Search modules...";
+  moduleSearch.setAttribute("aria-label","Search modules");
+  modulesPanel.prepend(moduleSearch);
+  const noSearchResults = document.createElement("div");
+  noSearchResults.className = "small";
+  noSearchResults.textContent = "No matching modules";
+  noSearchResults.hidden = true;
+  modulesPanel.appendChild(noSearchResults);
+
+  function filterModules() {
+    const query = moduleSearch.value.trim().toLocaleLowerCase();
+    let visibleCount = 0;
+    for (const [id,row] of Object.entries(rows)) {
+      const category = row.dataset.category || "";
+      const searchable = [id,category,...moduleInfo[id]].join(" ").toLocaleLowerCase();
+      const visible = !query || searchable.includes(query);
+      row.hidden = !visible;
+      if (visible) visibleCount++;
+    }
+    for (const {panel,heading,category} of developerCategoryHeadings) {
+      const hasVisibleRows = Object.values(rows).some(row =>
+        row.parentElement === panel && row.dataset.category === category && !row.hidden);
+      heading.hidden = !!query && !hasVisibleRows;
+    }
+    noSearchResults.hidden = !query || visibleCount > 0;
+  }
+
+  moduleSearch.addEventListener("input",filterModules);
+
+  function syncModuleRows() {
+    for (const [id,row] of Object.entries(rows)) {
+      const active = id === "linkWidget" ? !!linkFloat
+        : id === "serverESP" ? !!networkPanel
+        : id === "consoleWindow" ? !!consolePanel
+        : id === "aiChat" ? !!aiChatPanel
+        : id === "textFix" || id === "pageSearch" || id === "cookies" || developerActions.has(id) ? false
+        : !!cfg.modules[id];
+      row.classList.toggle("on",active);
+      row.setAttribute("aria-pressed",String(active));
+    }
+  }
+
   const settingsModal = document.createElement("div");
   settingsModal.id = "settings-modal";
   settingsModal.innerHTML =
@@ -836,9 +962,15 @@ timerRender();
     modalContent.replaceChildren();
     const title = document.createElement("div");
     title.className = "small";
-    title.textContent = "Customize " + moduleInfo[id][0] +
-      ". Right-click the module again to reopen these settings.";
+    title.textContent = moduleInfo[id][1] + " Right-click the module again to reopen these settings.";
     modalContent.appendChild(title);
+    const moduleHelp = document.createElement("span");
+    moduleHelp.className = "help-tip";
+    moduleHelp.tabIndex = 0;
+    moduleHelp.textContent = "?";
+    moduleHelp.dataset.help = moduleInfo[id][1];
+    moduleHelp.setAttribute("aria-label",moduleInfo[id][1]);
+    title.appendChild(moduleHelp);
 
     const currentBind = cfg.binds[id] || "";
     const bindButton = button(modalContent,
@@ -854,22 +986,10 @@ timerRender();
       notify("Keybind removed");
     });
 
-    if (id === "inspector") {
-      colorControl(modalContent,"Highlight Color",
-        () => cfg.options.inspector.color,
-        v => cfg.options.inspector.color = v);
-    }
-
-    if (id === "links") {
-      colorControl(modalContent,"Link Outline Color",
-        () => cfg.options.links.color,
-        v => cfg.options.links.color = v);
-    }
-
-    if (id === "images") {
-      colorControl(modalContent,"Image Outline Color",
-        () => cfg.options.images.color,
-        v => cfg.options.images.color = v);
+    if (moduleColorSettings[id]) {
+      colorControl(modalContent,moduleColorSettings[id],
+        () => moduleEffectColor(id),
+        v => cfg.options[id].color = v);
     }
 
     if (id === "bigText") {
@@ -912,6 +1032,13 @@ timerRender();
         e.currentTarget.textContent = "Toggle Seconds: " + (cfg.clock.seconds ? "ON" : "OFF");
         save(); updateClock();
       });
+    }
+
+    if (id === "timer") {
+      const tip = document.createElement("div");
+      tip.className = "small";
+      tip.textContent = "The accent color applies to the timer border, title, and countdown display.";
+      modalContent.appendChild(tip);
     }
 
     if (id === "imageReplace") {
@@ -1011,25 +1138,52 @@ timerRender();
       modalContent.appendChild(tip);
     }
 
+    if (id === "consoleWindow") {
+      const tip = document.createElement("div");
+      tip.className = "small";
+      tip.textContent = "Shows console messages captured after Hyper Chrome loads. It does not read DevTools history or messages from other extensions.";
+      modalContent.appendChild(tip);
+    }
+
+    if (id === "aiChat") {
+      const tip = document.createElement("div");
+      tip.className = "small";
+      tip.textContent = "Your API key is kept only in this open tab and is sent directly to the provider you select; it is not saved in the website settings.";
+      modalContent.appendChild(tip);
+    }
+
     settingsModal.classList.add("open");
   }
 
-  function addModule(panel, id) {
+  function addModule(panel, id, category = "") {
     const row = document.createElement("div");
     row.className = "module";
-    row.title = "Left-click: toggle · Right-click: settings";
+    row.dataset.module = id;
+    row.dataset.category = category;
 
     const info = document.createElement("div");
     info.innerHTML = `<div class="mname">${moduleInfo[id][0]}</div><div class="desc">${moduleInfo[id][1]}</div>`;
-    const sw = document.createElement("div");
-    sw.className = "switch";
-    row.append(info, sw);
+    const actionOnly = developerActions.has(id) || id === "textFix" || id === "pageSearch" || id === "cookies" || id === "consoleWindow" || id === "aiChat";
+    row.title = `${moduleInfo[id][1]} — ${actionOnly ? "Click: open/run · Right-click: settings" : "Left-click: toggle · Right-click: settings"}`;
+    const indicator = document.createElement("div");
+    if (actionOnly) {
+      indicator.className = "module-action";
+      indicator.textContent = "↗";
+      indicator.title = "Click to run";
+    } else {
+      indicator.className = "switch";
+    }
+    row.append(info, indicator);
 
     row.addEventListener("click", () => {
       if (developerActions.has(id)) { runDeveloperAction(id); return; }
       if (id === "textFix") { openTextFix(); return; }
-      if (id === "linkWidget") { toggleLinkWidget(); return; }
-      if (id === "serverESP") { toggleServerESP(); return; }
+      if (id === "pageSearch") { togglePageSearch(); return; }
+      if (id === "cookies") { toggleCookieManager(); return; }
+      if (id === "consoleWindow") { toggleConsoleWindow(); return; }
+      if (id === "aiChat") { toggleAiChat(); return; }
+      if (id === "linkWidget") { toggleLinkWidget(); syncModuleRows(); return; }
+      if (id === "serverESP") { toggleServerESP(); syncModuleRows(); return; }
       cfg.modules[id] = !cfg.modules[id];
       save(); applyModules();
       notify(moduleInfo[id][0] + ": " + (cfg.modules[id] ? "ON" : "OFF"));
@@ -1042,20 +1196,22 @@ timerRender();
 
     panel.appendChild(row);
     rows[id] = row;
+    syncModuleRows();
   }
 
   ["dark","animations","reader","customCSS","textFix"].forEach(id => addModule(modulesPanel,id));
   ["inspector","links","images","hideImages","bigText","hideHeaders","clock","timer","imageReplace"]
     .forEach(id => addModule(visualPanel,id));
-  ["linkWidget","serverESP"].forEach(id => addModule(configPanel,id));
+  ["linkWidget","serverESP","pageSearch","cookies","consoleWindow","aiChat"].forEach(id => addModule(configPanel,id));
 
   function addDeveloperCategory(panel,category) {
     const heading = document.createElement("div");
-    heading.className = "small";
+    heading.className = "small developer-category";
     heading.style.cssText = "padding:12px 7px 4px;font-weight:900;color:var(--a);text-transform:uppercase;letter-spacing:1px";
     heading.textContent = "Web Developer · " + category;
     panel.appendChild(heading);
-    webDeveloperTools.filter(item => item[0] === category).forEach(item => addModule(panel,item[1]));
+    developerCategoryHeadings.push({panel,heading,category});
+    webDeveloperTools.filter(item => item[0] === category).forEach(item => addModule(panel,item[1],category));
   }
   ["CSS","Outline"].forEach(category => addDeveloperCategory(modulesPanel,category));
   ["Images","Miscellaneous"].forEach(category => addDeveloperCategory(visualPanel,category));
@@ -1065,6 +1221,7 @@ timerRender();
   const devInlineOriginals = new Map();
   const devHiddenOriginals = new Map();
   let devReportPanel = null;
+  let devReportModuleId = "";
   let devHud = null;
 
   function syncDeveloperHud() {
@@ -1072,45 +1229,50 @@ timerRender();
     if (!active) { if (devHud) devHud.remove();devHud=null;return; }
     if (!devHud) {
       devHud=document.createElement("div");
-      devHud.style.cssText="position:fixed;inset:0;z-index:2147483000;pointer-events:none;color:"+cfg.accent+";font:11px monospace";
+      devHud.style.cssText="position:fixed;inset:0;z-index:2147483000;pointer-events:none;font:11px monospace";
       root.appendChild(devHud);
     }
     devHud.replaceChildren();
     if (cfg.modules.devLineGuides) {
       const h=document.createElement("div"),v=document.createElement("div");
-      h.style.cssText=`position:absolute;left:0;right:0;top:50%;border-top:1px dashed ${cfg.accent}`;
-      v.style.cssText=`position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed ${cfg.accent}`;
+      const color=moduleEffectColor("devLineGuides");
+      h.style.cssText=`position:absolute;left:0;right:0;top:50%;border-top:1px dashed ${color}`;
+      v.style.cssText=`position:absolute;top:0;bottom:0;left:50%;border-left:1px dashed ${color}`;
       devHud.append(h,v);
     }
     if (cfg.modules.devRuler) {
       const top=document.createElement("div"),left=document.createElement("div");
-      top.style.cssText=`position:absolute;left:0;right:0;top:0;height:18px;border-bottom:1px solid ${cfg.accent};background:repeating-linear-gradient(90deg,${cfg.accent} 0 1px,transparent 1px 10px);opacity:.8`;
-      left.style.cssText=`position:absolute;left:0;top:0;bottom:0;width:18px;border-right:1px solid ${cfg.accent};background:repeating-linear-gradient(180deg,${cfg.accent} 0 1px,transparent 1px 10px);opacity:.8`;
+      const color=moduleEffectColor("devRuler");
+      top.style.cssText=`position:absolute;left:0;right:0;top:0;height:18px;border-bottom:1px solid ${color};background:repeating-linear-gradient(90deg,${color} 0 1px,transparent 1px 10px);opacity:.8`;
+      left.style.cssText=`position:absolute;left:0;top:0;bottom:0;width:18px;border-right:1px solid ${color};background:repeating-linear-gradient(180deg,${color} 0 1px,transparent 1px 10px);opacity:.8`;
       devHud.append(top,left);
     }
     if (cfg.modules.devViewportSize) {
       const badge=document.createElement("div");badge.textContent=`Viewport ${innerWidth} × ${innerHeight}`;
-      badge.style.cssText=`position:absolute;right:12px;bottom:12px;background:${cfg.bg};color:${cfg.text};border:1px solid ${cfg.accent};border-radius:5px;padding:6px 9px;box-shadow:0 2px 12px #0008`;
+      const color=moduleEffectColor("devViewportSize");
+      badge.style.cssText=`position:absolute;right:12px;bottom:12px;background:${color};color:${moduleEffectTextColor("devViewportSize")};border:1px solid ${color};border-radius:5px;padding:6px 9px;box-shadow:0 2px 12px #0008`;
       devHud.appendChild(badge);
     }
   }
 
-  function showDeveloperReport(title,lines) {
+  function showDeveloperReport(title,lines,color=cfg.text,moduleId="") {
     if (devReportPanel) devReportPanel.remove();
     const panel = document.createElement("section");
     panel.className = "floating";
     panel.style.cssText = "left:auto;right:16px;top:70px;width:500px;height:65vh;z-index:2147483647";
+    panel.style.setProperty("--a",moduleId ? moduleEffectColor(moduleId) : cfg.accent);
     const head = document.createElement("div"); head.className = "float-head";
-    const caption = document.createElement("span"); caption.textContent = "MAGICX · " + title;
+    const caption = document.createElement("span"); caption.textContent = "HYPER CHROME · " + title;
     const close = document.createElement("button"); close.textContent = "×";
     head.append(caption,close);
     const body = document.createElement("div"); body.className = "float-body";
     const pre = document.createElement("pre");
-    pre.style.cssText = "white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 Consolas,monospace;color:var(--fg)";
+    pre.style.cssText = `white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 Consolas,monospace;color:${color}`;
     pre.textContent = lines.length ? lines.join("\n") : "No matching items found.";
     body.appendChild(pre); panel.append(head,body); root.appendChild(panel);
     devReportPanel = panel;
-    close.addEventListener("click",() => { panel.remove(); devReportPanel=null; });
+    devReportModuleId = moduleId;
+    close.addEventListener("click",() => { panel.remove(); devReportPanel=null; devReportModuleId=""; });
     let drag=null;
     head.addEventListener("pointerdown",e => { if(e.target.closest("button"))return;const r=panel.getBoundingClientRect();drag={x:e.clientX-r.left,y:e.clientY-r.top};head.setPointerCapture(e.pointerId);e.preventDefault(); });
     head.addEventListener("pointermove",e => { if(drag){panel.style.left=Math.max(0,e.clientX-drag.x)+"px";panel.style.top=Math.max(0,e.clientY-drag.y)+"px";panel.style.right="auto";} });
@@ -1161,32 +1323,32 @@ timerRender();
           node.style.setProperty("display","block","important");
           node.style.setProperty("visibility","visible","important");
           node.style.setProperty("opacity","1","important");
-          node.setAttribute("data-mx-hidden","1");
+          node.setAttribute("data-hc-hidden","1");
         }
       } else if (devHiddenOriginals.has(node)) {
         const value=devHiddenOriginals.get(node);
         if (value === null) node.removeAttribute("style"); else node.setAttribute("style",value);
-        node.removeAttribute("data-mx-hidden");devHiddenOriginals.delete(node);
+        node.removeAttribute("data-hc-hidden");devHiddenOriginals.delete(node);
       }
-      if (cfg.modules.devTagNames) node.setAttribute("data-mx-tag",node.tagName.toLowerCase());
-      else node.removeAttribute("data-mx-tag");
+      if (cfg.modules.devTagNames) node.setAttribute("data-hc-tag",node.tagName.toLowerCase());
+      else node.removeAttribute("data-hc-tag");
       if (cfg.modules.devIdClass && (node.id || node.classList?.length)) {
-        node.setAttribute("data-mx-dev-idclass",`${node.id ? "#"+node.id : ""}${node.classList?.length ? "."+[...node.classList].join(".") : ""}`);
-      } else node.removeAttribute("data-mx-dev-idclass");
+        node.setAttribute("data-hc-dev-idclass",`${node.id ? "#"+node.id : ""}${node.classList?.length ? "."+[...node.classList].join(".") : ""}`);
+      } else node.removeAttribute("data-hc-dev-idclass");
       if (cfg.modules.devOutlineExternal && node.matches("a[href]")) {
-        try { node.toggleAttribute("data-mx-dev-external",new URL(node.href,location.href).hostname !== location.hostname); } catch {}
-      } else node.removeAttribute("data-mx-dev-external");
+        try { node.toggleAttribute("data-hc-dev-external",new URL(node.href,location.href).hostname !== location.hostname); } catch {}
+      } else node.removeAttribute("data-hc-dev-external");
     });
     const replaceAlt = !!cfg.modules.devReplaceAlt;
-    document.querySelectorAll("img[data-mx-replace-alt],img[alt]").forEach(img => {
+    document.querySelectorAll("img[data-hc-replace-alt],img[alt]").forEach(img => {
       if (replaceAlt && img.alt) {
-        img.setAttribute("data-mx-replace-alt","1");
-        if (!img.nextElementSibling?.classList.contains("mx-dev-alt")) {
-          const label=document.createElement("span");label.className="mx-dev-alt";label.textContent=img.alt;img.insertAdjacentElement("afterend",label);
+        img.setAttribute("data-hc-replace-alt","1");
+        if (!img.nextElementSibling?.classList.contains("hc-dev-alt")) {
+          const label=document.createElement("span");label.className="hc-dev-alt";label.textContent=img.alt;img.insertAdjacentElement("afterend",label);
         }
       } else {
-        img.removeAttribute("data-mx-replace-alt");
-        if (img.nextElementSibling?.classList.contains("mx-dev-alt")) img.nextElementSibling.remove();
+        img.removeAttribute("data-hc-replace-alt");
+        if (img.nextElementSibling?.classList.contains("hc-dev-alt")) img.nextElementSibling.remove();
       }
     });
     syncDeveloperHud();
@@ -1194,11 +1356,11 @@ timerRender();
 
   function runDeveloperAction(id) {
     const all = (selector,scope=document) => [...scope.querySelectorAll(selector)];
-    const report = (title,items) => showDeveloperReport(title,items);
+    const report = (title,items) => showDeveloperReport(title,items,moduleEffectColor(id),id);
     const describe = el => `${el.tagName.toLowerCase()}${el.id ? "#"+el.id : ""}${el.classList?.length ? "."+[...el.classList].join(".") : ""}`;
     const addTitle = (el,value) => {
-      if (!el.dataset.mxDevOriginalTitle) el.dataset.mxDevOriginalTitle = el.getAttribute("title") || "";
-      el.title = [el.dataset.mxDevOriginalTitle,value].filter(Boolean).join("\n");
+      if (!el.dataset.hcDevOriginalTitle) el.dataset.hcDevOriginalTitle = el.getAttribute("title") || "";
+      el.title = [el.dataset.hcDevOriginalTitle,value].filter(Boolean).join("\n");
     };
     if (["devCheckAll","devUncheckAll"].includes(id)) {
       const checked=id === "devCheckAll";
@@ -1218,10 +1380,10 @@ timerRender();
       forms.forEach(form=>form.method=to);notify(`${forms.length} forms changed to ${to.toUpperCase()}`);return;
     }
     if (id === "devSelectToText") {
-      const selects=all("select");selects.forEach(old=>{const input=document.createElement("input");input.type="text";input.value=old.selectedOptions[0]?.textContent||"";input.name=old.name;input.id=old.id;input.className=old.className;input.setAttribute("data-mx-replaced-select","1");old.replaceWith(input);});notify(`${selects.length} select elements converted`);return;
+      const selects=all("select");selects.forEach(old=>{const input=document.createElement("input");input.type="text";input.value=old.selectedOptions[0]?.textContent||"";input.name=old.name;input.id=old.id;input.className=old.className;input.setAttribute("data-hc-replaced-select","1");old.replaceWith(input);});notify(`${selects.length} select elements converted`);return;
     }
     if (id === "devInputToTextarea") {
-      const inputs=all("input[type=text],input:not([type])");inputs.forEach(old=>{const area=document.createElement("textarea");area.value=old.value;area.name=old.name;area.id=old.id;area.className=old.className;area.setAttribute("data-mx-replaced-input","1");old.replaceWith(area);});notify(`${inputs.length} text inputs converted`);return;
+      const inputs=all("input[type=text],input:not([type])");inputs.forEach(old=>{const area=document.createElement("textarea");area.value=old.value;area.name=old.name;area.id=old.id;area.className=old.className;area.setAttribute("data-hc-replaced-input","1");old.replaceWith(area);});notify(`${inputs.length} text inputs converted`);return;
     }
     if (id === "devViewCSS") return report("CSS ON THIS PAGE",[
       ...all("link[rel~='stylesheet']").map(link=>`Linked: ${link.href}`),
@@ -1240,8 +1402,8 @@ timerRender();
     if (["devDisplayAlt","devImageDimensions","devImagePaths"].includes(id)) {
       const imgs=all("img");imgs.forEach(img=>{const bits=[];if(id==="devDisplayAlt"&&img.alt)bits.push(`alt: ${img.alt}`);if(id==="devImageDimensions")bits.push(`size: ${img.naturalWidth}×${img.naturalHeight}`);if(id==="devImagePaths")bits.push(`src: ${img.currentSrc||img.src}`);addTitle(img,bits.join(" · ")||"(no alt text)");});notify(`Updated tooltips on ${imgs.length} images`);return;
     }
-    if (id === "devBrokenImages") {const broken=all("img").filter(img=>img.complete&&img.naturalWidth===0);broken.forEach(img=>img.style.setProperty("outline","3px solid #ff3030","important"));return report("BROKEN IMAGES",broken.map(img=>img.currentSrc||img.src));}
-    if (id === "devReloadImages") {const imgs=all("img");imgs.forEach(img=>{try{const url=new URL(img.currentSrc||img.src);url.searchParams.set("mx_reload",Date.now());img.src=url.href;}catch{}});notify(`Reload requested for ${imgs.length} images`);return;}
+    if (id === "devBrokenImages") {const broken=all("img").filter(img=>img.complete&&img.naturalWidth===0);broken.forEach(img=>img.setAttribute("data-hc-broken-image","1"));return report("BROKEN IMAGES",broken.map(img=>img.currentSrc||img.src));}
+    if (id === "devReloadImages") {const imgs=all("img");imgs.forEach(img=>{try{const url=new URL(img.currentSrc||img.src);url.searchParams.set("hc_reload",Date.now());img.src=url.href;}catch{}});notify(`Reload requested for ${imgs.length} images`);return;}
     if (id === "devImageInfo") return report("IMAGE INFORMATION",all("img").map(img=>`${img.currentSrc||img.src}\n  ${img.naturalWidth}×${img.naturalHeight} · ${img.complete&&img.naturalWidth?"loaded":"not loaded/broken"} · alt=${img.alt||"(none)"}`));
     if (id === "devAbbreviations") {const els=all("abbr[title],acronym[title]");els.forEach(el=>addTitle(el,el.title));return report("ABBREVIATIONS",els.map(el=>`${el.textContent.trim()} — ${el.title}`));}
     if (id === "devAccessKeys") {const els=all("[accesskey]");els.forEach(el=>addTitle(el,`accesskey: ${el.accessKey}`));return report("ACCESS KEYS",els.map(el=>`${describe(el)} — ${el.accessKey}`));}
@@ -1289,7 +1451,7 @@ timerRender();
     }
     if (id === "devViewSource") return report("PAGE DOM SOURCE",[document.documentElement.outerHTML]);
     if (id === "devViewportSize") {notify(`Viewport: ${innerWidth}×${innerHeight}`);return;}
-    if (id === "devReloadStyles") {const links=all("link[rel~='stylesheet']");links.forEach(link=>{try{const u=new URL(link.href);u.searchParams.set("mx_reload",Date.now());link.href=u.href;}catch{}});notify(`Reload requested for ${links.length} stylesheets`);return;}
+    if (id === "devReloadStyles") {const links=all("link[rel~='stylesheet']");links.forEach(link=>{try{const u=new URL(link.href);u.searchParams.set("hc_reload",Date.now());link.href=u.href;}catch{}});notify(`Reload requested for ${links.length} stylesheets`);return;}
     if (id === "devShowPrintStyles"||id === "devShowHandheldStyles") {notify("Stylesheet media override toggled");return;}
     if (id === "devValidateLinks") return;
     report(moduleInfo[id]?.[0]||"WEB DEVELOPER",[moduleInfo[id]?.[1]||"Feature available."]);
@@ -1324,6 +1486,64 @@ timerRender();
   rangeControl(themePanel,"GUI Scale (%)",70,120,
     () => cfg.scale,v => cfg.scale = v);
 
+  const builtInThemes = {
+    "Hyper Chrome": { accent:"#FFFFFF", gradient:"#303030", bg:"#000000", text:"#FFFFFF", border:"#FFFFFF", muted:"#B8B8B8", headerText:"#FFFFFF", buttonBg:"#161616", buttonText:"#FFFFFF", buttonHover:"#333333", controlBg:"#111111", switchOff:"#444444", switchKnob:"#FFFFFF", switchOnKnob:"#000000" },
+    Midnight: { accent:"#8AB4F8", gradient:"#172033", bg:"#0B1020", text:"#E8EAED", border:"#405A83", muted:"#A8B4C7", headerText:"#FFFFFF", buttonBg:"#16213A", buttonText:"#E8EAED", buttonHover:"#263A60", controlBg:"#101A2E", switchOff:"#3A4D6E", switchKnob:"#E8EAED", switchOnKnob:"#0B1020" },
+    Forest: { accent:"#8FE3B0", gradient:"#15352A", bg:"#081C15", text:"#E8FFF0", border:"#4A8D6E", muted:"#AFD0BE", headerText:"#E8FFF0", buttonBg:"#123126", buttonText:"#E8FFF0", buttonHover:"#245842", controlBg:"#0D271D", switchOff:"#376D54", switchKnob:"#E8FFF0", switchOnKnob:"#081C15" },
+    Violet: { accent:"#D0B5FF", gradient:"#342050", bg:"#180D2B", text:"#FAF5FF", border:"#8E6FC3", muted:"#D0BFDE", headerText:"#FAF5FF", buttonBg:"#2A1745", buttonText:"#FAF5FF", buttonHover:"#4A2B70", controlBg:"#211238", switchOff:"#604682", switchKnob:"#FAF5FF", switchOnKnob:"#180D2B" },
+    "High Contrast Dark": { accent:"#FFFF00", gradient:"#1A1A1A", bg:"#000000", text:"#FFFFFF", border:"#FFFFFF", muted:"#D6D6D6", headerText:"#FFFFFF", buttonBg:"#000000", buttonText:"#FFFFFF", buttonHover:"#353535", controlBg:"#000000", switchOff:"#666666", switchKnob:"#FFFFFF", switchOnKnob:"#000000" },
+    Evening: { accent:"#F4BF75", gradient:"#5A514A", bg:"#3D3935", text:"#F7F0E8", border:"#998D82", muted:"#CEC4BA", headerText:"#FFF8F0", buttonBg:"#514A44", buttonText:"#FFF8F0", buttonHover:"#686059", controlBg:"#47413C", switchOff:"#796F65", switchKnob:"#FFF8F0", switchOnKnob:"#3D3935" },
+    "Solarized Dark": { accent:"#2AA198", gradient:"#073642", bg:"#002B36", text:"#EEE8D5", border:"#586E75", muted:"#93A1A1", headerText:"#FDF6E3", buttonBg:"#073642", buttonText:"#EEE8D5", buttonHover:"#0B4A58", controlBg:"#00212A", switchOff:"#586E75", switchKnob:"#EEE8D5", switchOnKnob:"#002B36" },
+    Glacier: { accent:"#66D9FF", gradient:"#243B55", bg:"#172A3A", text:"#F1FAFF", border:"#6E9FC2", muted:"#B5CADC", headerText:"#FFFFFF", buttonBg:"#20384C", buttonText:"#F1FAFF", buttonHover:"#2F526E", controlBg:"#1B3143", switchOff:"#4D718B", switchKnob:"#F1FAFF", switchOnKnob:"#172A3A" }
+  };
+  const refreshThemeInputs = () => {
+    const values = [cfg.accent,cfg.gradient,cfg.bg,cfg.text,cfg.border,cfg.headerText,cfg.muted,cfg.buttonBg,cfg.buttonText,cfg.buttonHover,cfg.controlBg,cfg.switchOff,cfg.switchKnob,cfg.switchOnKnob,...Object.values(cfg.syntax)];
+    themePanel.querySelectorAll("input[type=color]").forEach((input,index) => { if (values[index]) input.value = values[index]; });
+    const ranges = themePanel.querySelectorAll("input[type=range]");
+    if (ranges[0]) { ranges[0].value = cfg.opacity; if (ranges[0].parentElement?.lastElementChild) ranges[0].parentElement.lastElementChild.textContent = cfg.opacity; }
+    if (ranges[1]) { ranges[1].value = cfg.scale; if (ranges[1].parentElement?.lastElementChild) ranges[1].parentElement.lastElementChild.textContent = cfg.scale; }
+  };
+  const themeSnapshot = () => ({
+    accent:cfg.accent,gradient:cfg.gradient,bg:cfg.bg,text:cfg.text,border:cfg.border,muted:cfg.muted,headerText:cfg.headerText,
+    buttonBg:cfg.buttonBg,buttonText:cfg.buttonText,buttonHover:cfg.buttonHover,controlBg:cfg.controlBg,switchOff:cfg.switchOff,
+    switchKnob:cfg.switchKnob,switchOnKnob:cfg.switchOnKnob,syntax:clone(cfg.syntax),opacity:cfg.opacity,scale:cfg.scale
+  });
+  const applySavedTheme = theme => {
+    if (!theme || typeof theme !== "object") return;
+    const colors = ["accent","gradient","bg","text","border","muted","headerText","buttonBg","buttonText","buttonHover","controlBg","switchOff","switchKnob","switchOnKnob"];
+    for (const key of colors) if (typeof theme[key] === "string" && /^#[0-9a-f]{6}$/i.test(theme[key])) cfg[key] = theme[key];
+    if (theme.syntax && typeof theme.syntax === "object") cfg.syntax = { ...cfg.syntax, ...theme.syntax };
+    if (Number.isFinite(theme.opacity)) cfg.opacity = Math.max(50,Math.min(100,theme.opacity));
+    if (Number.isFinite(theme.scale)) cfg.scale = Math.max(70,Math.min(120,theme.scale));
+    applyTheme(); applyModules(); refreshThemeInputs(); save();
+  };
+  const themeSelect = document.createElement("select");
+  const rebuildThemeSelect = () => {
+    const selected = themeSelect.value;
+    themeSelect.replaceChildren();
+    for (const name of Object.keys(builtInThemes)) { const option = new Option(name,`builtin:${name}`); themeSelect.add(option); }
+    for (const name of Object.keys(cfg.customThemes || {}).sort((a,b) => a.localeCompare(b))) { const option = new Option(`Custom · ${name}`,`custom:${name}`); themeSelect.add(option); }
+    if ([...themeSelect.options].some(option => option.value === selected)) themeSelect.value = selected;
+  };
+  addSetting(themePanel,"Themes",themeSelect);
+  rebuildThemeSelect();
+  themeSelect.addEventListener("change", () => {
+    const [kind,...parts] = themeSelect.value.split(":"); const name = parts.join(":");
+    applySavedTheme(kind === "builtin" ? builtInThemes[name] : cfg.customThemes?.[name]);
+    notify(`${name} theme applied`);
+  });
+  const themeName = document.createElement("input"); themeName.type = "text"; themeName.placeholder = "Custom theme name";
+  addSetting(themePanel,"Save current theme",themeName);
+  button(themePanel,"Save Custom Theme",() => {
+    const name = themeName.value.trim().slice(0,40);
+    if (!name) return notify("Enter a theme name");
+    cfg.customThemes = { ...(cfg.customThemes || {}), [name]:themeSnapshot() }; save(); rebuildThemeSelect(); themeSelect.value = `custom:${name}`; notify("Custom theme saved");
+  });
+  button(themePanel,"Delete Selected Custom Theme",() => {
+    const value = themeSelect.value; if (!value.startsWith("custom:")) return notify("Select a custom theme first");
+    const name = value.slice(7); delete cfg.customThemes[name]; save(); rebuildThemeSelect(); notify("Custom theme deleted");
+  });
+
   button(themePanel,"Set ClickGUI Keybind",e => {
     waitingForKey = { type:"gui", button:e.currentTarget };
     e.currentTarget.textContent = "Press a key or combination...";
@@ -1343,9 +1563,28 @@ timerRender();
     save(); applyModules();
   });
 
+  // The HTML Lab can keep an edited page body enabled for this website. Scripts are
+  // deliberately stripped: this is an editor, not a way to run untrusted code.
+  let htmlApplyTimer;
+  function applySavedHtmlToPage() {
+    if (!cfg.htmlPageEnabled || !document.body) return;
+    const parsed = new DOMParser().parseFromString(cfg.html,"text/html");
+    parsed.querySelectorAll("script").forEach(node => node.remove());
+    const fragment = document.createDocumentFragment();
+    for (const node of [...parsed.body.childNodes]) fragment.appendChild(document.importNode(node,true));
+    if (parsed.title) document.title = parsed.title;
+    document.body.replaceChildren(fragment);
+    document.body.appendChild(host);
+  }
+  function scheduleSavedHtmlApply() {
+    clearTimeout(htmlApplyTimer);
+    htmlApplyTimer = setTimeout(applySavedHtmlToPage,120);
+  }
+
   // Isolated HTML preview. Scripts are disabled in the sandbox.
   const htmlEditor = makeEditor(cfg.html,"html",v => {
     cfg.html = v; save();
+    if (cfg.htmlPageEnabled) scheduleSavedHtmlApply();
   });
   htmlPanel.appendChild(htmlEditor.wrap);
 
@@ -1359,10 +1598,25 @@ timerRender();
     preview.srcdoc = cfg.html;
   });
 
+  const applyHtmlButton = button(htmlPanel,"Apply HTML to This Website: " + (cfg.htmlPageEnabled ? "ON" : "OFF"),e => {
+    cfg.htmlPageEnabled = !cfg.htmlPageEnabled;
+    e.currentTarget.textContent = "Apply HTML to This Website: " + (cfg.htmlPageEnabled ? "ON" : "OFF");
+    save();
+    if (cfg.htmlPageEnabled) { applySavedHtmlToPage(); notify("Saved HTML is now active for this website"); }
+    else { notify("HTML override disabled — reload to restore the original page"); }
+  });
+  const htmlNotice = document.createElement("div");
+  htmlNotice.className = "small";
+  htmlNotice.textContent = "When enabled, this saved HTML replaces the current page body automatically on future visits. Scripts are not run. Disable it and reload to restore the original page.";
+  htmlPanel.appendChild(htmlNotice);
+
   button(htmlPanel,"Reset HTML",() => {
     cfg.html = defaults.html;
+    cfg.htmlPageEnabled = false;
     htmlEditor.input.value = cfg.html;
     htmlEditor.paint(); save();
+    applyHtmlButton.textContent = "Apply HTML to This Website: OFF";
+    notify("HTML reset — reload to restore the original page");
   });
 
   // Config import/export
@@ -1370,7 +1624,7 @@ timerRender();
     const blob = new Blob([JSON.stringify(cfg,null,2)],{type:"application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "MagicX-Client-config.json"; a.click();
+    a.href = url; a.download = "Hyper-Chrome-config.json"; a.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
   });
 
@@ -1410,7 +1664,7 @@ timerRender();
   });
 
   button(configPanel,"Reset Everything",() => {
-    if (!confirm("Reset all MagicX-Client settings?")) return;
+    if (!confirm("Reset all Hyper Chrome settings?")) return;
     cfg = clone(defaults);
     save();
     location.reload();
@@ -1422,22 +1676,245 @@ timerRender();
     "Use the configured ClickGUI key to open the menu. Right-click a module for advanced settings.";
   configPanel.appendChild(configInfo);
 
+  let pageSearchPanel = null;
+  function togglePageSearch() {
+    if (pageSearchPanel) { pageSearchPanel.remove(); pageSearchPanel = null; return; }
+    const panel = document.createElement("section");
+    panel.className = "floating";
+    panel.style.cssText = "left:50%;top:18px;transform:translateX(-50%);width:420px;height:112px";
+    const head = document.createElement("div"); head.className = "float-head";
+    const title = document.createElement("span"); title.textContent = "HYPER CHROME · SEARCH";
+    const close = document.createElement("button"); close.textContent = "×"; close.title = "Close search";
+    head.append(title, close);
+    const body = document.createElement("div"); body.className = "float-body";
+    const form = document.createElement("div"); form.style.cssText = "display:flex;gap:6px";
+    const input = document.createElement("input"); input.type = "search"; input.className = "float-url"; input.placeholder = "Search this page…";
+    const previous = document.createElement("button"); previous.className = "btn"; previous.style.width = "72px"; previous.textContent = "↑ Prev";
+    const next = document.createElement("button"); next.className = "btn"; next.style.width = "72px"; next.textContent = "Next ↓";
+    const find = backwards => {
+      const query = input.value.trim();
+      if (query) window.find(query, false, backwards, true, false, false, false);
+    };
+    input.addEventListener("input", () => find(false));
+    input.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); find(event.shiftKey); } });
+    previous.addEventListener("click", () => find(true)); next.addEventListener("click", () => find(false));
+    close.addEventListener("click", () => { panel.remove(); pageSearchPanel = null; });
+    form.append(input, previous, next); body.appendChild(form); panel.append(head, body); root.appendChild(panel);
+    pageSearchPanel = panel; input.focus();
+  }
+
+  let cookieManager = null;
+  const readCookies = () => document.cookie ? document.cookie.split(/;\s*/).filter(Boolean).map(pair => {
+    const equal = pair.indexOf("=");
+    return { name: equal < 0 ? pair : pair.slice(0,equal), value: equal < 0 ? "" : pair.slice(equal + 1) };
+  }) : [];
+  const deleteCookie = name => {
+    // Cookie attributes are intentionally not exposed to page scripts. Try the two paths a
+    // page can reliably address; HttpOnly and other-domain cookies remain browser-protected.
+    const safeName = name.replace(/[;\r\n]/g, "");
+    document.cookie = `${safeName}=; Max-Age=0; path=/; SameSite=Lax`;
+    document.cookie = `${safeName}=; Max-Age=0; path=${location.pathname.replace(/\/[^/]*$/, "/") || "/"}; SameSite=Lax`;
+  };
+  function toggleCookieManager() {
+    if (cookieManager) { cookieManager.remove(); cookieManager = null; return; }
+    const panel = document.createElement("section");
+    panel.className = "floating"; panel.style.cssText = "left:50%;top:135px;transform:translateX(-50%);width:540px;height:min(560px,70vh)";
+    const head = document.createElement("div"); head.className = "float-head";
+    const title = document.createElement("span"); title.textContent = "HYPER CHROME · COOKIE MANAGER";
+    const close = document.createElement("button"); close.textContent = "×"; close.title = "Close cookie manager";
+    head.append(title, close);
+    const body = document.createElement("div"); body.className = "float-body";
+    const note = document.createElement("div"); note.className = "small";
+    note.textContent = "Only cookies readable by this page can be managed. HttpOnly and cookies from other domains stay protected.";
+    const controls = document.createElement("div"); controls.style.cssText = "display:flex;gap:6px;margin:8px 0";
+    const refresh = document.createElement("button"); refresh.className = "btn"; refresh.textContent = "Refresh";
+    const clear = document.createElement("button"); clear.className = "btn"; clear.textContent = "Delete visible cookies";
+    controls.append(refresh, clear);
+    const editor = document.createElement("div"); editor.style.cssText = "display:grid;grid-template-columns:1fr 1.4fr .6fr auto;gap:6px;margin-bottom:8px";
+    const name = document.createElement("input"); name.className = "float-url"; name.placeholder = "Name";
+    const value = document.createElement("input"); value.className = "float-url"; value.placeholder = "Value";
+    const path = document.createElement("input"); path.className = "float-url"; path.placeholder = "Path"; path.value = "/";
+    const saveCookie = document.createElement("button"); saveCookie.className = "btn"; saveCookie.style.width = "70px"; saveCookie.textContent = "Save";
+    editor.append(name, value, path, saveCookie);
+    const list = document.createElement("div");
+    const render = () => {
+      list.replaceChildren(); const cookies = readCookies();
+      if (!cookies.length) { const empty = document.createElement("div"); empty.className = "small"; empty.textContent = "No script-readable cookies found."; list.appendChild(empty); return; }
+      for (const cookie of cookies) {
+        const row = document.createElement("div"); row.className = "setting"; row.style.cssText = "display:flex;align-items:center;gap:8px";
+        const details = document.createElement("div"); details.style.cssText = "flex:1;min-width:0;overflow-wrap:anywhere";
+        const label = document.createElement("strong"); label.textContent = cookie.name;
+        const text = document.createElement("div"); text.className = "small"; try { text.textContent = decodeURIComponent(cookie.value); } catch { text.textContent = cookie.value; }
+        details.append(label, text);
+        const edit = document.createElement("button"); edit.className = "btn"; edit.style.width = "54px"; edit.textContent = "Edit";
+        const remove = document.createElement("button"); remove.className = "btn"; remove.style.width = "58px"; remove.textContent = "Delete";
+        edit.addEventListener("click", () => { name.value = cookie.name; try { value.value = decodeURIComponent(cookie.value); } catch { value.value = cookie.value; } });
+        remove.addEventListener("click", () => { deleteCookie(cookie.name); render(); });
+        row.append(details, edit, remove); list.appendChild(row);
+      }
+    };
+    saveCookie.addEventListener("click", () => {
+      const cookieName = name.value.trim().replace(/[;\r\n=]/g, "");
+      if (!cookieName) return notify("Enter a cookie name");
+      document.cookie = `${cookieName}=${encodeURIComponent(value.value)}; path=${path.value.trim() || "/"}; SameSite=Lax`;
+      render(); notify("Cookie saved");
+    });
+    refresh.addEventListener("click", render);
+    clear.addEventListener("click", () => { if (confirm("Delete all cookies visible to this page?")) { readCookies().forEach(cookie => deleteCookie(cookie.name)); render(); } });
+    close.addEventListener("click", () => { panel.remove(); cookieManager = null; });
+    body.append(note, controls, editor, list); panel.append(head, body); root.appendChild(panel); cookieManager = panel; render();
+  }
+
+  // A small in-page console is useful when DevTools are not open. It records only
+  // messages produced after this extension has loaded and never changes console output.
+  const consoleEntries = [];
+  const consoleValue = value => {
+    if (typeof value === "string") return value;
+    try { return JSON.stringify(value); } catch { return String(value); }
+  };
+  function recordConsole(level, values) {
+    consoleEntries.push({ level, time:new Date().toLocaleTimeString(), text:values.map(consoleValue).join(" ") });
+    if (consoleEntries.length > 250) consoleEntries.shift();
+    renderConsoleWindow();
+  }
+  function renderConsoleWindow() {
+    if (!consoleBody) return;
+    consoleBody.replaceChildren();
+    for (const entry of consoleEntries) {
+      const line = document.createElement("div");
+      line.className = "console-line " + entry.level;
+      line.textContent = `[${entry.time}] ${entry.level.toUpperCase()}  ${entry.text}`;
+      consoleBody.appendChild(line);
+    }
+    consoleBody.scrollTop = consoleBody.scrollHeight;
+  }
+  function toggleConsoleWindow(forceOpen) {
+    const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !consolePanel;
+    if (!shouldOpen) { if (consolePanel) consolePanel.remove(); consolePanel = null; consoleBody = null; syncModuleRows(); return; }
+    if (consolePanel) { consolePanel.style.display = "block"; renderConsoleWindow(); return; }
+    const panel = document.createElement("section"); panel.className = "floating";
+    panel.style.cssText = "left:12px;top:auto;bottom:14px;width:580px;height:290px";
+    const head = document.createElement("div"); head.className = "float-head";
+    const title = document.createElement("span"); title.textContent = "HYPER CHROME · CONSOLE";
+    const actions = document.createElement("div"); actions.className = "float-actions";
+    const clear = document.createElement("button"); clear.textContent = "Clear"; clear.title = "Clear captured messages";
+    const close = document.createElement("button"); close.textContent = "×"; close.title = "Close console";
+    actions.append(clear,close); head.append(title,actions);
+    const body = document.createElement("div"); body.className = "float-body";
+    const note = document.createElement("div"); note.className = "small"; note.textContent = "Messages captured after Hyper Chrome loaded.";
+    consoleBody = document.createElement("div"); consoleBody.className = "console-output";
+    body.append(note,consoleBody); panel.append(head,body); root.appendChild(panel); consolePanel = panel;
+    clear.addEventListener("click",() => { consoleEntries.length = 0; renderConsoleWindow(); });
+    close.addEventListener("click",() => toggleConsoleWindow(false));
+    let drag = null;
+    head.addEventListener("pointerdown",e => { if (e.target.closest("button")) return; const r=panel.getBoundingClientRect(); drag={x:e.clientX-r.left,y:e.clientY-r.top}; head.setPointerCapture(e.pointerId); e.preventDefault(); });
+    head.addEventListener("pointermove",e => { if (!drag) return; panel.style.left=Math.max(0,e.clientX-drag.x)+"px"; panel.style.top=Math.max(0,e.clientY-drag.y)+"px"; panel.style.bottom="auto"; });
+    head.addEventListener("pointerup",() => drag=null); head.addEventListener("pointercancel",() => drag=null);
+    renderConsoleWindow(); syncModuleRows();
+  }
+  if (!window.__hyperChromeConsoleHooksV4) {
+    window.__hyperChromeConsoleHooksV4 = true;
+    for (const level of ["log","info","warn","error","debug"]) {
+      const original = console[level];
+      console[level] = function(...values) { recordConsole(level,values); return original.apply(console,values); };
+    }
+    window.addEventListener("error",event => recordConsole("error",[event.message || "Uncaught error"]));
+    window.addEventListener("unhandledrejection",event => recordConsole("error",["Unhandled promise rejection:",event.reason]));
+  }
+
+  let aiApiKey = "";
+  let aiMessages = [];
+  const aiDefaults = { openai:"gpt-4o-mini", groq:"llama-3.3-70b-versatile", gemini:"gemini-2.5-flash", anthropic:"claude-3-5-haiku-latest" };
+  const aiProviderNames = { openai:"OpenAI", groq:"Groq", gemini:"Google Gemini", anthropic:"Anthropic" };
+  const aiError = data => data?.error?.message || data?.message || "The provider returned an unexpected response.";
+  async function requestAiReply(provider, apiKey, model, messages, systemPrompt) {
+    messages = messages.filter(message => message.role === "user" || message.role === "assistant");
+    const json = async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(aiError(data));
+      return data;
+    };
+    if (provider === "openai") {
+      const transcript = messages.map(message => `${message.role === "assistant" ? "Assistant" : "User"}: ${message.content}`).join("\n\n");
+      const data = await fetch("https://api.openai.com/v1/responses", { method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${apiKey}`}, body:JSON.stringify({model,instructions:systemPrompt,input:transcript}) }).then(json);
+      return data.output_text || data.output?.flatMap(item => item.content || []).map(part => part.text || "").filter(Boolean).join("\n") || "(No text response.)";
+    }
+    if (provider === "groq") {
+      const data = await fetch("https://api.groq.com/openai/v1/chat/completions", { method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${apiKey}`}, body:JSON.stringify({model,messages:[...(systemPrompt ? [{role:"system",content:systemPrompt}] : []),...messages]}) }).then(json);
+      return data.choices?.[0]?.message?.content || "(No text response.)";
+    }
+    if (provider === "gemini") {
+      const contents = messages.map(message => ({role:message.role === "assistant" ? "model" : "user",parts:[{text:message.content}]}));
+      const data = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method:"POST", headers:{"Content-Type":"application/json","x-goog-api-key":apiKey}, body:JSON.stringify({contents,...(systemPrompt ? {systemInstruction:{parts:[{text:systemPrompt}]}} : {})}) }).then(json);
+      return data.candidates?.[0]?.content?.parts?.map(part => part.text || "").join("") || "(No text response.)";
+    }
+    const data = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"}, body:JSON.stringify({model,max_tokens:1024,system:systemPrompt,messages}) }).then(json);
+    return data.content?.map(part => part.text || "").join("") || "(No text response.)";
+  }
+  function toggleAiChat(forceOpen) {
+    const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !aiChatPanel;
+    if (!shouldOpen) { if (aiChatPanel) aiChatPanel.remove(); aiChatPanel = null; syncModuleRows(); return; }
+    if (aiChatPanel) { aiChatPanel.style.display = "block"; return; }
+    const panel = document.createElement("section"); panel.className = "floating";
+    panel.style.cssText = "left:50%;top:12%;transform:translateX(-50%);width:600px;height:min(680px,78vh)";
+    const head = document.createElement("div"); head.className = "float-head";
+    const title = document.createElement("span"); title.textContent = "HYPER CHROME · AI CHAT";
+    const actions = document.createElement("div"); actions.className = "float-actions";
+    const clear = document.createElement("button"); clear.textContent = "Clear"; clear.title = "Clear this tab's chat history";
+    const close = document.createElement("button"); close.textContent = "×"; close.title = "Close AI chat";
+    actions.append(clear,close); head.append(title,actions);
+    const body = document.createElement("div"); body.className = "float-body";
+    const provider = document.createElement("select");
+    for (const [value,label] of Object.entries(aiProviderNames)) provider.add(new Option(label,value));
+    provider.value = cfg.aiChat.provider;
+    const model = document.createElement("input"); model.type="text"; model.value=cfg.aiChat.model || aiDefaults[provider.value]; model.placeholder="Model ID";
+    const key = document.createElement("input"); key.type="password"; key.autocomplete="new-password"; key.value=aiApiKey; key.placeholder="API key (kept only in this tab)";
+    const system = document.createElement("input"); system.type="text"; system.value=cfg.aiChat.systemPrompt; system.placeholder="Optional system instruction";
+    const addField = (label,element,help) => { const box=document.createElement("div"); box.className="setting"; const title=document.createElement("label"); title.textContent=label; if(help){const hint=document.createElement("span");hint.className="help-tip";hint.tabIndex=0;hint.textContent="?";hint.dataset.help=help;title.append(hint);} box.append(title,element);body.append(box); };
+    addField("Provider",provider,"Select the API that receives this chat.");
+    addField("Model",model,"Use a model ID available to your account.");
+    addField("API key",key,"Never written to local storage or exported in the Hyper Chrome config.");
+    addField("System instruction",system,"Sets the assistant's general behavior for this chat.");
+    const output = document.createElement("div"); output.className="chat-output";
+    const render = () => { output.replaceChildren(); if (!aiMessages.length) { const empty=document.createElement("div");empty.className="small";empty.textContent="Enter an API key, then ask a question. Your key goes directly to the selected provider.";output.append(empty); } for(const message of aiMessages){const item=document.createElement("div");item.className="chat-message "+message.role;item.textContent=(message.role === "user" ? "You: " : "AI: ")+message.content;output.append(item);} output.scrollTop=output.scrollHeight; };
+    const prompt = document.createElement("textarea"); prompt.placeholder="Ask something…"; prompt.rows=3; prompt.style.cssText="width:100%;margin-top:8px;resize:vertical;background:var(--control-bg);color:var(--fg);border:1px solid var(--bd);border-radius:6px;padding:8px;font:13px/1.4 Inter,Arial,sans-serif";
+    const send = document.createElement("button"); send.className="btn"; send.textContent="Send";
+    body.append(output,prompt,send); panel.append(head,body); root.appendChild(panel); aiChatPanel=panel; render(); syncModuleRows();
+    provider.addEventListener("change",() => { cfg.aiChat.provider=provider.value; model.value=aiDefaults[provider.value]; cfg.aiChat.model=model.value; save(); });
+    model.addEventListener("change",() => { cfg.aiChat.model=model.value.trim() || aiDefaults[provider.value]; });
+    system.addEventListener("change",() => { cfg.aiChat.systemPrompt=system.value; save(); });
+    key.addEventListener("input",() => { aiApiKey=key.value; });
+    const submit = async () => {
+      const text=prompt.value.trim(), apiKey=key.value.trim(), modelId=model.value.trim();
+      if (!text) return; if (!apiKey) return notify("Enter an API key"); if (!modelId) return notify("Enter a model ID");
+      cfg.aiChat = {provider:provider.value,model:modelId,systemPrompt:system.value}; save();
+      aiMessages.push({role:"user",content:text}); prompt.value=""; send.disabled=true; send.textContent="Sending…"; render();
+      try { aiMessages.push({role:"assistant",content:await requestAiReply(provider.value,apiKey,modelId,aiMessages,system.value)}); }
+      catch (error) { aiMessages.push({role:"error",content:"Request failed: "+(error?.message || "Unknown error")}); }
+      finally { send.disabled=false; send.textContent="Send"; render(); }
+    };
+    send.addEventListener("click",submit); prompt.addEventListener("keydown",event => { if(event.key === "Enter" && !event.shiftKey){event.preventDefault();submit();} });
+    clear.addEventListener("click",() => { aiMessages=[]; render(); }); close.addEventListener("click",() => toggleAiChat(false));
+    let drag=null; head.addEventListener("pointerdown",e=>{if(e.target.closest("button"))return;const r=panel.getBoundingClientRect();drag={x:e.clientX-r.left,y:e.clientY-r.top};head.setPointerCapture(e.pointerId);e.preventDefault();});
+    head.addEventListener("pointermove",e=>{if(drag){panel.style.left=Math.max(0,e.clientX-drag.x)+"px";panel.style.top=Math.max(0,e.clientY-drag.y)+"px";panel.style.transform="none";}});head.addEventListener("pointerup",()=>drag=null);head.addEventListener("pointercancel",()=>drag=null);
+  }
 
   // V4 floating link widget
-  let linkFloat = null, linkFrame = null;
   function toggleLinkWidget(forceOpen) {
     const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !linkFloat;
     if (!shouldOpen) {
       if (linkFloat) linkFloat.remove();
       linkFloat = null; linkFrame = null;
+      syncModuleRows();
       return;
     }
     if (linkFloat) { linkFloat.style.display = "block"; return; }
     const panel = document.createElement("section");
     panel.className = "floating";
+    panel.style.setProperty("--a",moduleEffectColor("linkWidget"));
     panel.style.left = "18%"; panel.style.top = "18%";
     const head = document.createElement("div"); head.className = "float-head";
-    const title = document.createElement("span"); title.textContent = "MAGICX · LINK WIDGET";
+    const title = document.createElement("span"); title.textContent = "HYPER CHROME · LINK WIDGET";
     const actions = document.createElement("div"); actions.className = "float-actions";
     const full = document.createElement("button"); full.textContent = "⛶"; full.title = "Toggle fullscreen";
     const openTab = document.createElement("button"); openTab.textContent = "↗"; openTab.title = "Open in new tab";
@@ -1450,10 +1927,11 @@ timerRender();
     const go = document.createElement("button"); go.className = "btn"; go.style.width = "90px"; go.textContent = "Open";
     form.append(url,go);
     const frameWrap = document.createElement("div"); frameWrap.style.cssText = "height:calc(100% - 48px);min-height:180px";
-    const frame = document.createElement("iframe"); frame.title = "MagicX link widget";
+    const frame = document.createElement("iframe"); frame.title = "Hyper Chrome link widget";
     frame.setAttribute("sandbox","allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox");
     frameWrap.appendChild(frame); body.append(form,frameWrap); panel.append(head,body); root.appendChild(panel);
     linkFloat = panel; linkFrame = frame;
+    syncModuleRows();
     function navigate() {
       const value = url.value.trim();
       if (!/^https?:\/\//i.test(value)) { notify("Enter a full http(s) URL"); return; }
@@ -1504,7 +1982,7 @@ timerRender();
     const panel = document.createElement("section"); panel.className = "floating";
     panel.style.left = "25%"; panel.style.top = "20%"; panel.style.width = "520px"; panel.style.height = "330px";
     const head = document.createElement("div"); head.className = "float-head";
-    const title = document.createElement("span"); title.textContent = "MAGICX · TEXT FIX";
+    const title = document.createElement("span"); title.textContent = "HYPER CHROME · TEXT FIX";
     const close = document.createElement("button"); close.textContent = "×"; close.title = "Close";
     head.append(title,close);
     const body = document.createElement("div"); body.className = "float-body";
@@ -1557,7 +2035,6 @@ timerRender();
 
   // Server ESP: observe resource timing plus fetch/XHR metadata; no request/response bodies.
   const networkLog = [];
-  let networkPanel = null, networkBody = null;
   function logNetwork(kind, url, detail="") {
     try {
       const parsed = new URL(String(url), location.href);
@@ -1579,12 +2056,12 @@ timerRender();
   }
   function toggleServerESP(forceOpen) {
     const shouldOpen=typeof forceOpen==="boolean"?forceOpen:!networkPanel;
-    if(!shouldOpen){if(networkPanel)networkPanel.remove();networkPanel=null;networkBody=null;return;}
+    if(!shouldOpen){if(networkPanel)networkPanel.remove();networkPanel=null;networkBody=null;syncModuleRows();return;}
     if(networkPanel){networkPanel.style.display="block";renderNetworkLog();return;}
-    const panel=document.createElement("section");panel.className="floating";
+    const panel=document.createElement("section");panel.className="floating";panel.style.setProperty("--a",moduleEffectColor("serverESP"));
     panel.style.left="auto";panel.style.right="14px";panel.style.top="80px";panel.style.width="430px";panel.style.height="420px";
     const head=document.createElement("div");head.className="float-head";
-    const title=document.createElement("span");title.textContent="MAGICX · SERVER ESP";
+    const title=document.createElement("span");title.textContent="HYPER CHROME · SERVER ESP";
     const actions=document.createElement("div");actions.className="float-actions";
     const clear=document.createElement("button");clear.textContent="Clear";
     const close=document.createElement("button");close.textContent="×";
@@ -1592,7 +2069,7 @@ timerRender();
     const body=document.createElement("div");body.className="float-body";body.style.height="calc(100% - 36px)";
     const note=document.createElement("div");note.className="small";
     note.textContent="Observable network metadata only. Browser restrictions mean this is not a packet sniffer; cross-origin response bodies and private data are not read.";
-    networkBody=document.createElement("div");body.append(note,networkBody);panel.append(head,body);root.appendChild(panel);networkPanel=panel;
+    networkBody=document.createElement("div");body.append(note,networkBody);panel.append(head,body);root.appendChild(panel);networkPanel=panel;syncModuleRows();
     clear.addEventListener("click",()=>{networkLog.length=0;renderNetworkLog();});
     close.addEventListener("click",()=>toggleServerESP(false));
     let drag=null;
@@ -1602,8 +2079,8 @@ timerRender();
     head.addEventListener("pointercancel",()=>drag=null);
     renderNetworkLog();
   }
-  if (!window.__magicxNetworkHooksV4) {
-    window.__magicxNetworkHooksV4 = true;
+  if (!window.__hyperChromeNetworkHooksV4) {
+    window.__hyperChromeNetworkHooksV4 = true;
     const originalFetch = window.fetch;
     window.fetch = function(...args) {
       try { logNetwork("fetch", args[0] instanceof Request ? args[0].url : args[0]); } catch {}
@@ -1637,7 +2114,7 @@ timerRender();
     }
 
     document.querySelectorAll("img").forEach(img => {
-      if (host.contains(img) || img.closest("#magicx-client")) return;
+      if (host.contains(img) || img.closest("#hyper-chrome-client")) return;
       if (!originalImages.has(img)) originalImages.set(img,img.getAttribute("src") || "");
       if (img.src !== cfg.replacementImage) img.src = cfg.replacementImage;
       img.style.setProperty("object-fit",cfg.options.imageReplace.fit || "cover","important");
@@ -1646,13 +2123,12 @@ timerRender();
 
   let pageObserver;
   function applyModules() {
-    for (const [id,row] of Object.entries(rows)) {
-      row.classList.toggle("on",!!cfg.modules[id]);
-    }
+    syncModuleRows();
 
     const css = [];
     if (cfg.modules.dark) {
-      css.push("html{filter:invert(1) hue-rotate(180deg)!important;background:#111!important}img,video,canvas{filter:invert(1) hue-rotate(180deg)!important}");
+      // Invert the isolated Hyper Chrome host a second time so its GUI is unchanged.
+      css.push("html{filter:invert(1) hue-rotate(180deg)!important;background:#111!important}img,video,canvas{filter:invert(1) hue-rotate(180deg)!important}#hyper-chrome-client{filter:invert(1) hue-rotate(180deg)!important}");
     }
     if (cfg.modules.animations) {
       css.push("*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}");
@@ -1678,20 +2154,33 @@ timerRender();
     if (cfg.modules.customCSS) css.push(cfg.css);
     for (const [id,rule] of Object.entries(developerStyleRules)) {
       if (cfg.modules[id] && rule) {
-        css.push(rule);
+        css.push(typeof rule === "function" ? rule() : rule);
       }
     }
     if (cfg.modules.devTagNames) {
-      css.push("[data-mx-tag]::before{content:attr(data-mx-tag);position:absolute;z-index:2147483000;background:#111;color:#fff;font:10px monospace;padding:2px 4px;pointer-events:none}");
+      const color=moduleEffectColor("devTagNames");
+      css.push(`[data-hc-tag]::before{content:attr(data-hc-tag);position:absolute;z-index:2147483000;background:${color};color:${moduleEffectTextColor("devTagNames")};font:10px monospace;padding:2px 4px;pointer-events:none}`);
+    }
+    if (document.querySelector("img[data-hc-broken-image='1']")) {
+      css.push(`img[data-hc-broken-image='1']{outline:3px solid ${moduleEffectColor("devBrokenImages")}!important}`);
     }
 
     effects.textContent = css.join("\n");
     syncDeveloperDom();
+    if (devReportPanel && devReportModuleId) {
+      const reportText=devReportPanel.querySelector("pre");
+      if (reportText) reportText.style.color=moduleEffectColor(devReportModuleId);
+      devReportPanel.style.setProperty("--a",moduleEffectColor(devReportModuleId));
+    }
     clock.classList.toggle("visible",!!cfg.modules.clock);
     clock.style.color = cfg.clock.color;
+    clock.style.borderColor = cfg.clock.color;
     clock.style.fontSize = cfg.clock.size + "px";
     clock.style.left = cfg.clock.x + "%";
     clock.style.top = cfg.clock.y + "%";
+    timerHud.style.setProperty("--a",moduleEffectColor("timer"));
+    if (linkFloat) linkFloat.style.setProperty("--a",moduleEffectColor("linkWidget"));
+    if (networkPanel) networkPanel.style.setProperty("--a",moduleEffectColor("serverESP"));
 
     if (!cfg.modules.inspector) clearInspector();
     replacePageImages();
@@ -1699,8 +2188,8 @@ timerRender();
 
   function clearInspector() {
     if (!inspectorTarget) return;
-    inspectorTarget.style.outline = inspectorTarget.dataset.magicxOldOutline || "";
-    delete inspectorTarget.dataset.magicxOldOutline;
+    inspectorTarget.style.outline = inspectorTarget.dataset.hyperChromeOldOutline || "";
+    delete inspectorTarget.dataset.hyperChromeOldOutline;
     inspectorTarget = null;
   }
 
@@ -1713,7 +2202,7 @@ timerRender();
     if (!(el instanceof HTMLElement) || host.contains(el) || el === inspectorTarget) return;
     clearInspector();
     inspectorTarget = el;
-    inspectorTarget.dataset.magicxOldOutline = inspectorTarget.style.outline;
+    inspectorTarget.dataset.hyperChromeOldOutline = inspectorTarget.style.outline;
     inspectorTarget.style.outline = `2px solid ${cfg.options.inspector.color}`;
   },true);
 
@@ -1777,6 +2266,10 @@ timerRender();
       if (id === "textFix") { openTextFix(); return; }
       if (id === "linkWidget") { toggleLinkWidget(); return; }
       if (id === "serverESP") { toggleServerESP(); return; }
+      if (id === "pageSearch") { togglePageSearch(); return; }
+      if (id === "cookies") { toggleCookieManager(); return; }
+      if (id === "consoleWindow") { toggleConsoleWindow(); return; }
+      if (id === "aiChat") { toggleAiChat(); return; }
       cfg.modules[id] = !cfg.modules[id];
       save();
       applyModules();
@@ -1875,5 +2368,6 @@ timerRender();
   updateClock();
   setInterval(updateClock,1000);
 
-  console.log("%c✦ MAGICX-CLIENT V4 LOADED","color:#D5AD00;font-size:16px;font-weight:bold");
+  console.log("%c✦ HYPER CHROME V4 LOADED","color:#FFFFFF;font-size:16px;font-weight:bold");
+  if (cfg.htmlPageEnabled) setTimeout(applySavedHtmlToPage,0);
 })();
